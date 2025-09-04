@@ -36,14 +36,20 @@ torch_log_reg.eval()
 
 
 
-def find_all_wav_files2(root_dir, max_files=None):
+def find_all_wav_files2(root_dir, max_files=None, systems = False):
     audio_files = []
-    for dirpath, _, filenames in os.walk(root_dir):
-        for file in filenames:
-            if file.endswith(".wav"):
-                audio_files.append(os.path.join(dirpath, file))
-                if max_files and len(audio_files) >= max_files:
-                    return audio_files
+#    audio_files_systems = []
+
+#    if systems:
+#        for dirpath, subdirs, files in os.walk(root_dir):
+#            for 
+#    else:
+        for dirpath, _, filenames in os.walk(root_dir):
+            for file in filenames:
+                if file.endswith(".wav"):
+                    audio_files.append(os.path.join(dirpath, file))
+                    if max_files and len(audio_files) >= max_files:
+                        return audio_files
     return audio_files
 
 @st.cache_data
@@ -97,6 +103,7 @@ class AudioDataset(Dataset):
 
     def __getitem__(self, idx):
         audio_path = self.file_paths[idx]
+        print(audio_path)
         waveform = self.audio_processor.load_audio(audio_path)[0]
         return waveform.to(self.device), audio_path
 
@@ -112,7 +119,7 @@ def run_addvisor_batched(dir_path1, dir_path2):
         yhat1_logits, yhat1_probs = torch_log_reg(feats_mean)
 
         mask = model(feats)
-        print("mask stats: min =", mask.min().item(), " max =", mask.max().item(), " mean =", mask.mean().item())
+#        print("mask stats: min =", mask.min().item(), " max =", mask.max().item(), " mean =", mask.mean().item())
 #        mean_mask = mask.mean().item()
 #        mask = (mask > mean_mask).float()
 

@@ -45,6 +45,7 @@ class LMACLoss(nn.Module):
         l_out = F.binary_cross_entropy_with_logits(irr_logits, 1 - class_pred)
 
 
+
         losses = torch.stack([l_in, l_out])  # , reg_l1])
 
         total_loss = self.w_in * l_in + self.w_out * l_out 

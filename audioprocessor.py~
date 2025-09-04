@@ -146,8 +146,8 @@ class AudioProcessor:
 
 
         band_tensors = []
-        for i in range(16):
-            f_low, f_high = i*500, (i+1)*500
+        for i in range(8):
+            f_low, f_high = i*1000, (i+1)*1000
             idx = (freqs >= f_low) & (freqs < f_high)
             band_energy = magnitude[:, idx, :].mean(dim=1)
             band_tensors.append(band_energy)

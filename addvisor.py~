@@ -25,8 +25,8 @@ class Mask(nn.Module):
         x = self.relu(x)
         logits = self.linear2(x)
         mask = F.gumbel_softmax(logits, tau=0.5, hard=False, dim=-1)        
-        masked_bands = mask * bands
-        masked_irrelevant_bands = (1-mask) * bands
+        masked_output = mask * bands
+        masked_irrelevant_output = (1-mask) * bands
 
         ## frequency expandation -- chat GPT help here :)
         B, T, _ = bands.shape
