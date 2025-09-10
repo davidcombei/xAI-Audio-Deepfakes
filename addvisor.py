@@ -21,27 +21,21 @@ class Mask(nn.Module):
         self.band_edges = torch.linspace(0, self.freqs[-1], n_bands+1)
     def forward(self, bands_tensor):
         bands=bands_tensor.transpose(1,2)
+        bands = bands.mean(dim=1)
+#        print(bands.shape)
         x = self.linear1(bands)
         x = self.relu(x)
+#        print(x.shape)
         logits = self.linear2(x)
-        mask = F.gumbel_softmax(logits, tau=0.5, hard=False, dim=-1)        
+        
+#        print(logits.shape)
+        mask = F.gumbel_softmax(logits, tau=0.3, hard=False, dim=-1)
+#        print('mask shape:', mask.shape)
+#        print('bands shape', bands.shape)
         masked_bands = mask * bands
         masked_irrelevant_bands = (1-mask) * bands
-
-        ## frequency expandation -- chat GPT help here :)
-        B, T, _ = bands.shape
-        F_bins = self.freqs.shape[0]
-        relevant_full = torch.zeros(B, T, F_bins, device=bands.device)
-        irrelevant_full = torch.zeros_like(relevant_full)
-
-        for i in range(self.n_bands):
-            f_low, f_high = self.band_edges[i].item(), self.band_edges[i+1].item()
-            idx = (self.freqs >= f_low) & (self.freqs < f_high)
-            relevant_full[:, :, idx] = masked_bands[:, :, i:i+1]
-            irrelevant_full[:, :, idx] = masked_irrelevant_bands[:, :, i:i+1]
-
-        return relevant_full.transpose(1, 2), irrelevant_full.transpose(1, 2)
-
+        return masked_bands, masked_irrelevant_bands
+        
 
 
 

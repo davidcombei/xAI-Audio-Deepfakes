@@ -27,7 +27,7 @@ loss_class = LMACLoss().to(device)
 model = Mask(n_bands=16, hidden_size=64).to(device)
 torch_log_reg = TorchLogReg().to(device)
 torch_scaler = TorchScaler().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
 
 
 def find_all_wav_files_per_system(root_dir, samples_per_system=3):
@@ -135,9 +135,9 @@ class AudioDataset(Dataset):
 
 
     def __len__(self):
-        return len(self.file_paths)
+        #return len(self.file_paths)
 
-        #return 40
+        return 32
     def __getitem__(self, idx):
         # print(self.file_paths[idx])
         audio_path = self.file_paths[idx]
@@ -161,7 +161,7 @@ def collate_fn(batch):
 
 
 
-def train_mask(model, num_epochs, loss_fn, data_loader, save_path):
+def train_mask(model, num_epochs, loss_fn, data_loader, save_path, save=False):
     print('fitting...')
     model.train()
     for epoch in range(num_epochs):
@@ -173,8 +173,8 @@ def train_mask(model, num_epochs, loss_fn, data_loader, save_path):
             _, y, magnitude, phase = batch
             y, magnitude, phase = y.to(device), magnitude.to(device), phase.to(device)
             bands = audio_processor.get_freq_bands(magnitude).to(device)
-            y_band_rel, y_band_irrel = model(bands)
-            loss_value, individual_losses = loss_class.loss_function(y_band_rel,y_band_irrel, phase, y)
+            y_coeff_rel, y_coeff_irrel = model(bands)
+            loss_value, individual_losses = loss_class.loss_function(magnitude, y_coeff_rel,y_coeff_irrel, phase, y)
             optimizer.zero_grad()
             loss_value.backward()
             optimizer.step()
@@ -184,22 +184,23 @@ def train_mask(model, num_epochs, loss_fn, data_loader, save_path):
             progress_bar.set_postfix({"loss" : f"{loss_value.item():.4f}"})
         avg_loss = total_loss / total_nr_samples
         ckpt_path = os.path.join(save_path, f"bandwidth_mask_epoch_{epoch+1}_loss_{avg_loss:.4f}.pth")
-        log_line = f"epoch {epoch+1}: l_in = {total_l_in/total_nr_samples:.4f},  l_out={total_l_out/total_nr_samples:.4f}"
-        with open("/mnt/QNAP/comdav/logs/bandwidth_mask_loss_terms.txt", "a") as f:
-            f.write(log_line)
-        accelerator.save(model.state_dict(), ckpt_path)
+        if save:
+            log_line = f"\n epoch {epoch+1}: l_in = {total_l_in/total_nr_samples:.4f},  l_out={total_l_out/total_nr_samples:.4f}"
+            with open("/mnt/QNAP/comdav/logs/bandwidth_mask_loss_terms.txt", "a") as f:
+                f.write(log_line)
+            accelerator.save(model.state_dict(), ckpt_path)
 
 dir_path1 = '/mnt/QNAP/comdav/MLAAD_v5/'
 dir_path2 = '/mnt/QNAP/comdav/m-ailabs/'
-save_path = '/mnt/QNAP/comdav/addvisor_fixedBands/ckpts/'
+save_path = '/mnt/QNAP/comdav/addvisor_fixedBands/ckpts_kaytus/'
 
 
-BATCH_SIZE = 8
+BATCH_SIZE = 14
 dataset = AudioDataset(directory1 = dir_path1,
                        directory2 = dir_path2,
                        audio_processor = audio_processor,
                        device = device)
-data_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
+data_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn, drop_last=True)
 model, optimizer, data_loader = accelerator.prepare(model, optimizer, data_loader)
 
-train_mask(model=model, num_epochs=500, loss_fn=loss_class, data_loader=data_loader, save_path=save_path)
+train_mask(model=model, num_epochs=500, loss_fn=loss_class, data_loader=data_loader, save_path=save_path, save=False)
