@@ -17,7 +17,7 @@ torch_scaler = TorchScaler().to(device)
 
 
 class LMACLoss(nn.Module):
-    def __init__(self, reg_w_tv=0.00, w_in=1, w_out=0.0):
+    def __init__(self, reg_w_tv=0.00, w_in=2, w_out=0.3):
         super(LMACLoss, self).__init__()
         self.reg_w_tv = reg_w_tv
         self.w_in = w_in
@@ -40,13 +40,13 @@ class LMACLoss(nn.Module):
 #        print(coeffs_rel.shape)
         y_band_rel   = magnitude * coeffs_rel
         y_band_irrel = magnitude * coeffs_irrel
-        
+#        print(torch.argmax(y_coeff_rel[0]))
         y_rel_band_reconstructed = y_band_rel * torch.exp(1j * phase)
         y_irrel_band_reconstructed = y_band_irrel * torch.exp(1j * phase)
         y_rel = audio_processor.compute_invert_stft(y_rel_band_reconstructed)
         y_irrel = audio_processor.compute_invert_stft(y_irrel_band_reconstructed)
-        torchaudio.save("audios/y_rel.wav", y_rel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
-        torchaudio.save("audios/y_irrel.wav", y_irrel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
+#        torchaudio.save("audios/y_rel.wav", y_rel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
+#        torchaudio.save("audios/y_irrel.wav", y_irrel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
         features_rel = audio_processor.extract_features(y_rel)
         features_irr = audio_processor.extract_features(y_irrel)
         features_rel = torch.mean(features_rel, dim=1)

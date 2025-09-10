@@ -29,7 +29,7 @@ class Mask(nn.Module):
         logits = self.linear2(x)
         
 #        print(logits.shape)
-        mask = F.gumbel_softmax(logits, tau=0.3, hard=False, dim=-1)
+        mask = F.gumbel_softmax(logits, tau=0.5, hard=False, dim=-1)
 #        print('mask shape:', mask.shape)
 #        print('bands shape', bands.shape)
         masked_bands = mask * bands

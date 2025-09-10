@@ -27,7 +27,7 @@ loss_class = LMACLoss().to(device)
 model = Mask(n_bands=16, hidden_size=64).to(device)
 torch_log_reg = TorchLogReg().to(device)
 torch_scaler = TorchScaler().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-6)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
 
 
 def find_all_wav_files_per_system(root_dir, samples_per_system=3):
@@ -135,9 +135,9 @@ class AudioDataset(Dataset):
 
 
     def __len__(self):
-        #return len(self.file_paths)
+        return len(self.file_paths)
 
-        return 32
+#        return 32
     def __getitem__(self, idx):
         # print(self.file_paths[idx])
         audio_path = self.file_paths[idx]
@@ -195,7 +195,7 @@ dir_path2 = '/mnt/QNAP/comdav/m-ailabs/'
 save_path = '/mnt/QNAP/comdav/addvisor_fixedBands/ckpts_kaytus/'
 
 
-BATCH_SIZE = 14
+BATCH_SIZE = 20
 dataset = AudioDataset(directory1 = dir_path1,
                        directory2 = dir_path2,
                        audio_processor = audio_processor,
@@ -203,4 +203,4 @@ dataset = AudioDataset(directory1 = dir_path1,
 data_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn, drop_last=True)
 model, optimizer, data_loader = accelerator.prepare(model, optimizer, data_loader)
 
-train_mask(model=model, num_epochs=500, loss_fn=loss_class, data_loader=data_loader, save_path=save_path, save=False)
+train_mask(model=model, num_epochs=2000, loss_fn=loss_class, data_loader=data_loader, save_path=save_path, save=True)
