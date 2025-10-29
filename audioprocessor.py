@@ -2,8 +2,8 @@ from classifier_embedder import (
     wav2vec2,
     processor,
     classifier,
-    scaler,
-    thresh,
+ #   scaler,
+ #   thresh,
     zero_mean_unit_var_norm,
 )
 import torch
@@ -18,9 +18,9 @@ accelerator = Accelerator()
 device = accelerator.device
 wav2vec2 = wav2vec2.to(device)
 wav2vec2.eval()
-thresh = (
-    thresh - 5e-3
-)  # due to venv differences the precision of features might deviate
+#thresh = (
+#    thresh - 5e-3
+#)  # due to venv differences the precision of features might deviate
 
 
 
@@ -146,8 +146,8 @@ class AudioProcessor:
 
 
         band_tensors = []
-        for i in range(16):
-            f_low, f_high = i*500, (i+1)*500
+        for i in range(8):
+            f_low, f_high = i*1000, (i+1)*1000
             idx = (freqs >= f_low) & (freqs < f_high)
             band_energy = magnitude[:, idx, :].mean(dim=1)
             band_tensors.append(band_energy)

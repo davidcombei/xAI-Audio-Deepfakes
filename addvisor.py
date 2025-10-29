@@ -35,6 +35,7 @@ class Mask(nn.Module):
 #        print(logits.shape)
         #mask = F.softmax(logits, dim=-1)
         mask = F.softmax(logits / 0.05, dim=-1)
+#        print(mask)
 #        mask = torch.sigmoid(logits)
 #        manual_mask = torch.tensor([[1., 1., 1., 1., 1., 1., 1., 1.]], device=bands.device)
 #       manual_mask = manual_mask.expand(bands.size(0), -1)

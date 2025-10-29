@@ -9,15 +9,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 from audioprocessor import AudioProcessor
-from classifier_embedder import TorchLogReg, TorchScaler
+from classifier_embedder import TorchLogReg#, TorchScaler
 
 audio_processor = AudioProcessor()
 torch_logreg = TorchLogReg().to(device)
-torch_scaler = TorchScaler().to(device)
+#torch_scaler = TorchScaler().to(device)
 
 
 class LMACLoss(nn.Module):
-    def __init__(self, reg_w_tv=0.00, w_in=2, w_out=0.3):
+    def __init__(self, reg_w_tv=0.00, w_in=1, w_out=1):
         super(LMACLoss, self).__init__()
         self.reg_w_tv = reg_w_tv
         self.w_in = w_in
@@ -32,21 +32,21 @@ class LMACLoss(nn.Module):
         freqs = torch.linspace(0, 8000, F, device=magnitude.device)
         coeffs_rel   = torch.zeros_like(magnitude)
         coeffs_irrel = torch.zeros_like(magnitude)
-        for i in range(16):
-            f_low, f_high = i * 500, (i + 1) * 500
+        for i in range(8):
+            f_low, f_high = i * 1000, (i + 1) * 1000
             idx = (freqs >= f_low) & (freqs < f_high)
             coeffs_rel[:, idx, :]   = y_coeff_rel[:, i].view(B, 1, 1)
             coeffs_irrel[:, idx, :] = (1 - y_coeff_rel[:, i]).view(B, 1, 1)
 #        print(coeffs_rel.shape)
         y_band_rel   = magnitude * coeffs_rel
         y_band_irrel = magnitude * coeffs_irrel
-#        print(torch.argmax(y_coeff_rel[0]))
+        
         y_rel_band_reconstructed = y_band_rel * torch.exp(1j * phase)
         y_irrel_band_reconstructed = y_band_irrel * torch.exp(1j * phase)
         y_rel = audio_processor.compute_invert_stft(y_rel_band_reconstructed)
         y_irrel = audio_processor.compute_invert_stft(y_irrel_band_reconstructed)
-#        torchaudio.save("audios/y_rel.wav", y_rel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
-#        torchaudio.save("audios/y_irrel.wav", y_irrel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
+        torchaudio.save("audios/y_rel3.wav", y_rel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
+        torchaudio.save("audios/y_irrel3.wav", y_irrel[0].unsqueeze(0).cpu(), sample_rate=audio_processor.sampling_rate)
         features_rel = audio_processor.extract_features(y_rel)
         features_irr = audio_processor.extract_features(y_irrel)
         features_rel = torch.mean(features_rel, dim=1)
