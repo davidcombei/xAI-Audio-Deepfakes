@@ -142,7 +142,7 @@ def extract_wavs(metadata):
         for path in f:
             audio_paths.append(path.split(',')[0])
     ## metadata = 5-9k - 0-1 kHz; 10-14k 1-2 kHz, 15-19k 2-3kHz ... (rest are for testing) 
-    selected_audios = audio_paths[:5000] + audio_paths[5000:9000] + audio_paths[10000:14000] + audio_paths[15000:19000] + audio_paths[20000:24000] + audio_paths[25000:29000] + audio_paths[30000:34000] + audio_paths[35000:39000] + audio_paths[40000:44000]
+    selected_audios = audio_paths[:4000] + audio_paths[5000:9000] #+ audio_paths[10000:14000] + audio_paths[15000:19000] + audio_paths[20000:24000] + audio_paths[25000:29000] + audio_paths[30000:34000] + audio_paths[35000:39000] + audio_paths[40000:44000]
     return selected_audios
 
 
@@ -215,7 +215,7 @@ def train_mask(model, num_epochs, loss_fn, data_loader, save_path, save=False):
             total_loss += loss_value.item()
             progress_bar.set_postfix({"loss" : f"{loss_value.item():.4f}"})
         avg_loss = total_loss / total_nr_samples
-        ckpt_path = os.path.join(save_path, f"band_any_{epoch+1}_loss_{avg_loss:.4f}.pth")
+        ckpt_path = os.path.join(save_path, f"band_0-1k_{epoch+1}_loss_{avg_loss:.4f}.pth")
 #        if save:
 #            log_line = f"\n epoch {epoch+1}: l_in = {total_l_in/total_nr_samples:.4f},  l_out={total_l_out/total_nr_samples:.4f}"
 #        with open("/mnt/QNAP/comdav/logs/bandwidth_mask_loss_terms.txt", "a") as f:
@@ -224,7 +224,7 @@ def train_mask(model, num_epochs, loss_fn, data_loader, save_path, save=False):
 
 dir_path1 = '/mnt/QNAP/comdav/MLAAD_v5/'
 dir_path2 = '/mnt/QNAP/comdav/m-ailabs/'
-save_path = 'mask_predictor_bands/anyband/'
+save_path = 'mask_predictor_bands/0-1k/'
 
 
 BATCH_SIZE = 16

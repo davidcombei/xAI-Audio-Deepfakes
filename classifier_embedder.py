@@ -10,7 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 #classifier, scaler, thresh = joblib.load(
 #    "/mnt/QNAP/comdav/addvisor/models/logreg_margin_pruning_ALL_with_scaler_threshold.joblib"
 #)
-classifier = joblib.load("logReg_vocoded_2-3kHz.joblib")
+classifier = joblib.load("logReg_vocoded_0-1kHz.joblib")
 processor = AutoFeatureExtractor.from_pretrained("facebook/wav2vec2-xls-r-2b")
 wav2vec2 = Wav2Vec2Model.from_pretrained(
     "/mnt/QNAP/comdav/addvisor/models/wav2vec2-xls-r-2b_truncated"

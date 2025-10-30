@@ -253,8 +253,7 @@ def run_addvisor_metrics(batch_size=4):
             _, probs_rel = torch_logreg(features_rel)
             _, probs_irr = torch_logreg(features_irr)
             '''
-            #probs_rel, probs_irr = call_function(magnitude, phase, torch.tensor([[0., 1., 1., 1., 0., 1., 1., 1.]], device=device).repeat(8,1))
-            probs_rel, probs_irr = call_function(magnitude, phase, y_coeff_rel, device=device).repeat(8,1)
+            probs_rel, probs_irr = call_function(magnitude, phase, torch.tensor([[0., 1., 1., 1., 0., 1., 1., 1.]], device=device).repeat(8,1))
             print(probs_irr)
             theta_out.append(probs_rel)
             masked_predictions.append(probs_irr)
@@ -305,3 +304,4 @@ def call_function(magnitude, phase, y_coeff_rel):
 if __name__ == "__main__":
 
     run_addvisor_metrics(batch_size=8)
+gir
