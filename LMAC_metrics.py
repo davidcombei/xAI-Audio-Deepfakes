@@ -23,49 +23,20 @@ torch_logreg = TorchLogReg().to(device)
 # checkpoint_path = '/mnt/QNAP/comdav/addvisor_savedV7/addvisor_epoch_92_loss_0.3716.pth'
 # checkpoint_path = '/mnt/QNAP/comdav/addvisor_saved_GradNorm2/addvisor_epoch_191_loss_0.5466.pth'
 checkpoint_path = (
-    "mask_predictor_bands/2-3k/band_2-3k_68_loss_61.7907.pth"
+    # "mask_predictor_bands/0-1k/band_0-1k_epoch_82_loss_25.9092.pth"
+    "mask_predictor_bands/1-2k/band_1-2k_epoch_82_loss_42.9023.pth"
+    # "mask_predictor_bands/2-3k/band_2-3k_epoch_82_loss_72.1998.pth"
+    # "mask_predictor_bands/3-4k/band_3-4k_epoch_82_loss_41.7321.pth"
+    # "mask_predictor_bands/4-5k/band_4-5k_epoch_83_loss_49.3918.pth"
+    # "mask_predictor_bands/5-6k/band_5-6k_epoch_82_loss_53.1085.pth"
+    # "mask_predictor_bands/6-7k/band_6-7k_epoch_82_loss_44.3506.pth"
+    # "mask_predictor_bands/7-8k/band_7-8k_epoch_82_loss_42.4535.pth"
 )
 
 checkpoint = torch.load(checkpoint_path, map_location=device)
 model.load_state_dict(checkpoint)
 
 eps = 1e-10
-'''
-@torch.no_grad()
-def compute_fidelity(theta_out, predictions):
-    pred_cl = torch.argmax(predictions, dim=1)
-    k_top = torch.topk(theta_out, k=1, dim=1)[1]
-    temp = (k_top - pred_cl.unsqueeze(1) == 0).sum(1)
-    print("original :", predictions.argmax(dim=1))
-    print("reconstructed :", theta_out.argmax(dim=1))
-    return temp
-
-@torch.no_grad()
-def compute_faithfulness(predictions, predictions_masked):
-    pred_cl = predictions.argmax(dim=1, keepdim=True)
-    predictions_selected = torch.gather(predictions, dim=1, index=pred_cl)
-    predictions_masked_selected = torch.gather(predictions_masked, dim=1, index=pred_cl)
-    return (predictions_selected - predictions_masked_selected).squeeze(dim=1)
-
-@torch.no_grad()
-def compute_AD(theta_out, predictions):
-    predictions = F.softmax(predictions, dim=1)
-    theta_out = F.softmax(theta_out, dim=1)
-    pc = torch.gather(predictions, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze()
-    oc = torch.gather(theta_out, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze(dim=1)
-    return (F.relu(pc - oc) / (pc + eps)) * 100
-
-@torch.no_grad()
-def compute_AI(theta_out, predictions):
-    pc = torch.gather(predictions, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze()
-    oc = torch.gather(theta_out, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze(dim=1)
-    return (pc < oc).float() * 100
-
-@torch.no_grad()
-def compute_AG(theta_out, predictions):
-    pc = torch.gather(predictions, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze()
-    oc = torch.gather(theta_out, dim=1, index=predictions.argmax(1, keepdim=True)).squeeze(dim=1)
-    return (F.relu(oc - pc) / (1 - pc + eps)) * 100
 
 
 @torch.no_grad()
@@ -76,7 +47,7 @@ def compute_fidelity(theta_out, predictions, threshold=torch.tensor(0.5)):
     #    print("original:", original_labels.view(-1))
     #    print("reconstructed :", masked_labels.view(-1))
     return fidelity
-'''
+
 
 # get THE SCORE FOR THE PREDICTED CLASS, not the probability for the sample being real (real has label 1)
 # e.g. if the prob is 0.8 - > real (1 ) -> returns 0.8, but if the prob is 0.2, it return 1- 0.2 = 0.8 OF IT BEING FAKE
@@ -113,31 +84,16 @@ def compute_AG(theta_out, predictions):
     return (F.relu(oc - pc) / (1 - pc + eps)) * 100
 
 
-# @torch.no_grad()
-# def compute_bandwise_relevance_hz(mask, sr=16000, band_width=1000):
-#    B, T, F = mask.shape
-#    mask_binary = (mask > 0.05).float()
-#    freq_bins = np.linspace(0, sr // 2, mask.shape[2])
-#    band_stats = {}
-#    max_freq = sr // 2
-#    for start_freq in range(0, max_freq, band_width):
-#        end_freq = start_freq + band_width
-#        band_indices = np.where((freq_bins >= start_freq) & (freq_bins < end_freq))[0]
-#        if len(band_indices) == 0:
-#            continue
-#        selected = mask_binary[:, :, band_indices]
-#        percent = selected.sum().item() / (B * T * len(band_indices)) * 100
-#        band_stats[f"{start_freq}-{end_freq}Hz"] = percent
-#    return band_stats
-
-
 def extract_wavs(metadata):
     audio_paths = []
     with open(metadata, "r") as f:
         for path in f:
-            audio_paths.append(path.split(',')[0])
+            audio_paths.append(path.split(",")[0])
     ## metadata = 5-9k - 0-1 kHz; 10-14k 1-2 kHz, 15-19k 2-3kHz ... (rest are for testing)
-    audio_paths = audio_paths[19000:20000] #audio_paths[9000:10000] + audio_paths[14000:15000] + audio_paths[19000:20000]+ audio_paths[24000:25000] + audio_paths[29000:30000] + audio_paths[34000:35000] + audio_paths[39000:40000] + audio_paths[44000:45000]
+    audio_paths_real = audio_paths[4000:5000]
+    audio_paths_fake = audio_paths[
+        9000:10000
+    ]  # + audio_paths[14000:15000] + audio_paths[19000:20000]+ audio_paths[24000:25000] + audio_paths[29000:30000] + audio_paths[34000:35000] + audio_paths[39000:40000] + audio_paths[44000:45000]
     return audio_paths
 
 
@@ -164,17 +120,11 @@ class AudioDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         path = self.file_paths[idx]
-        waveform, _ = self.audio_processor.load_audio(os.path.join("LJSpeech_vocoded/",path))
+        # print(path)
+        waveform, _ = self.audio_processor.load_audio(
+            os.path.join("LJSpeech_vocoded/", path)
+        )
         return waveform.to(self.device), os.path.basename(path)
-
-
-def collate_fn(batch):
-    waveforms, filenames = zip(*batch)
-    waveforms = torch.stack(waveforms, dim=0)
-    _, magnitude, phase = audio_processor.compute_stft(waveforms)
-    features = audio_processor.extract_features(waveforms)
-    return waveforms, magnitude, phase, features, filenames
-
 
 
 def run_addvisor_metrics(batch_size=4):
@@ -195,12 +145,11 @@ def run_addvisor_metrics(batch_size=4):
             bands = audio_processor.get_freq_bands(magnitude).to(device)
             y_coeff_rel, y_coeff_irrel = model(bands)
 
-            
             # print(mask)
             # print(mask.max().item())
             # print(mask.min().item())
             ## OLD
-            '''
+            """
             Tmax = mask.shape[1]
             magnitude = magnitude[:, :Tmax, :]
             magnitude = torch.log1p(magnitude).to(device)
@@ -224,10 +173,10 @@ def run_addvisor_metrics(batch_size=4):
             _, probs_irr = torch_log_reg(torch.mean(istft_irr_feats, dim=1))
             masked_predictions.append(probs_irr)
             # print(probs_irr)
-            '''
+            """
             ## FOR MASK BAND PREDICTOR:
             #######
-            '''
+            """
             B, F, T = magnitude.shape
             freqs = torch.linspace(0, 8000, F, device=magnitude.device)
             coeffs_rel   = torch.zeros_like(magnitude)
@@ -252,14 +201,22 @@ def run_addvisor_metrics(batch_size=4):
 
             _, probs_rel = torch_logreg(features_rel)
             _, probs_irr = torch_logreg(features_irr)
-            '''
-            probs_rel, probs_irr = call_function(magnitude, phase, torch.tensor([[0., 1., 1., 1., 0., 1., 1., 1.]], device=device).repeat(8,1))
-            print(probs_irr)
+            """
+            probs_rel, probs_irr = call_function(
+                magnitude,
+                phase,
+                torch.tensor(
+                    [[0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]], device=device
+                ).repeat(8, 1),
+            )
+            probs_rel, probs_irr = call_function(magnitude, phase, y_coeff_rel)
+            # print(probs_rel)
             theta_out.append(probs_rel)
             masked_predictions.append(probs_irr)
-    import pdb
-    pdb.set_trace()
-    
+
+    # import pdb
+    # pdb.set_trace()
+
     predictions = torch.cat(predictions, dim=0)
     theta_out = torch.cat(theta_out, dim=0)
     masked_predictions = torch.cat(masked_predictions, dim=0)
@@ -274,34 +231,35 @@ def run_addvisor_metrics(batch_size=4):
     print(f"average increase: {compute_AI(theta_out, predictions).mean().item():.2f}")
     print(f"average gain : {compute_AG(theta_out, predictions).mean().item():.2f}")
 
+
 def call_function(magnitude, phase, y_coeff_rel):
-            B, F, T = magnitude.shape
-            freqs = torch.linspace(0, 8000, F, device=magnitude.device)
-            coeffs_rel   = torch.zeros_like(magnitude)
-            coeffs_irrel = torch.zeros_like(magnitude)
-            for i in range(8):
-                f_low, f_high = i * 1000, (i + 1) * 1000
-                idx = (freqs >= f_low) & (freqs < f_high)
-                coeffs_rel[:, idx, :]   = y_coeff_rel[:, i].view(B, 1, 1)
-                coeffs_irrel[:, idx, :] = (1 - y_coeff_rel[:, i]).view(B, 1, 1)
-                #        print(coeffs_rel.shape)
-            y_band_rel   = magnitude * coeffs_rel
-            y_band_irrel = magnitude * coeffs_irrel
+    B, F, T = magnitude.shape
+    freqs = torch.linspace(0, 8000, F, device=magnitude.device)
+    coeffs_rel = torch.zeros_like(magnitude)
+    coeffs_irrel = torch.zeros_like(magnitude)
+    for i in range(8):
+        f_low, f_high = i * 1000, (i + 1) * 1000
+        idx = (freqs >= f_low) & (freqs < f_high)
+        coeffs_rel[:, idx, :] = y_coeff_rel[:, i].view(B, 1, 1)
+        coeffs_irrel[:, idx, :] = (1 - y_coeff_rel[:, i]).view(B, 1, 1)
+        #        print(coeffs_rel.shape)
+    y_band_rel = magnitude * coeffs_rel
+    y_band_irrel = magnitude * coeffs_irrel
 
-            y_rel_band_reconstructed = y_band_rel * torch.exp(1j * phase)
-            y_irrel_band_reconstructed = y_band_irrel * torch.exp(1j * phase)
-            y_rel = audio_processor.compute_invert_stft(y_rel_band_reconstructed)
-            y_irrel = audio_processor.compute_invert_stft(y_irrel_band_reconstructed)
-            features_rel = audio_processor.extract_features(y_rel)
-            features_irr = audio_processor.extract_features(y_irrel)
-            features_rel = torch.mean(features_rel, dim=1)
-            features_irr = torch.mean(features_irr, dim=1)
+    y_rel_band_reconstructed = y_band_rel * torch.exp(1j * phase)
+    y_irrel_band_reconstructed = y_band_irrel * torch.exp(1j * phase)
+    y_rel = audio_processor.compute_invert_stft(y_rel_band_reconstructed)
+    y_irrel = audio_processor.compute_invert_stft(y_irrel_band_reconstructed)
+    features_rel = audio_processor.extract_features(y_rel)
+    features_irr = audio_processor.extract_features(y_irrel)
+    features_rel = torch.mean(features_rel, dim=1)
+    features_irr = torch.mean(features_irr, dim=1)
 
-            _, probs_rel = torch_logreg(features_rel)
-            _, probs_irr = torch_logreg(features_irr)
-            return probs_rel, probs_irr
+    _, probs_rel = torch_logreg(features_rel)
+    _, probs_irr = torch_logreg(features_irr)
+    return probs_rel, probs_irr
+
 
 if __name__ == "__main__":
 
     run_addvisor_metrics(batch_size=8)
-gir

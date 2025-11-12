@@ -7,10 +7,10 @@ from sklearn.preprocessing import MinMaxScaler
 #####################
 ### LOAD WAV2VEC + LogReg
 #####################
-#classifier, scaler, thresh = joblib.load(
+# classifier, scaler, thresh = joblib.load(
 #    "/mnt/QNAP/comdav/addvisor/models/logreg_margin_pruning_ALL_with_scaler_threshold.joblib"
-#)
-classifier = joblib.load("logReg_vocoded_0-1kHz.joblib")
+# )
+classifier = joblib.load("logReg_ckpts/logReg_vocoded_anyband.joblib")
 processor = AutoFeatureExtractor.from_pretrained("facebook/wav2vec2-xls-r-2b")
 wav2vec2 = Wav2Vec2Model.from_pretrained(
     "/mnt/QNAP/comdav/addvisor/models/wav2vec2-xls-r-2b_truncated"
@@ -38,7 +38,8 @@ class TorchLogReg(nn.Module):
 
         return logits, probs
 
-'''
+
+"""
 class TorchScaler(nn.Module):
     def __init__(self):
         super(TorchScaler, self).__init__()
@@ -56,7 +57,7 @@ class TorchScaler(nn.Module):
 
         return x * self.scale_ + self.min_
 
-'''
+"""
 #####################################################################################
 ### Wav2Vec2FeatureExtractor Torch Version to allow computation graph for decoder mask
 #####################################################################################

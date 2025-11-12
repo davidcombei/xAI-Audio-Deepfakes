@@ -3,7 +3,7 @@ from addvisor import Mask
 import torch
 from audioprocessor import AudioProcessor
 from loss_function import LMACLoss
-from classifier_embedder import TorchLogReg#, TorchScaler, thresh
+from classifier_embedder import TorchLogReg  # , TorchScaler, thresh
 import os
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
@@ -26,8 +26,9 @@ audio_processor = AudioProcessor()
 loss_class = LMACLoss().to(device)
 model = Mask(n_bands=8).to(device)
 torch_log_reg = TorchLogReg().to(device)
-#torch_scaler = TorchScaler().to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+# torch_scaler = TorchScaler().to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-5)
+
 
 def find_all_files(metadata):
     audio_paths = []
@@ -39,7 +40,9 @@ def find_all_files(metadata):
             audio_paths.append(parts[0])
             labels.append(parts[1])
     return audio_paths, labels
-'''                                                                                                                                                                                                         
+
+
+"""                                                                                                                                                                                                         
 def compute_eer(y_true, y_score):                                                                                                                                                                           
     fpr, tpr, _ = roc_curve(y_true, y_score)                                                                                                                                                                
     fnr = 1 - tpr                                                                                                                                                                                           
@@ -54,8 +57,9 @@ def get_feats(metadata):
     selected_audios = audio_paths[:5000] + audio_paths[40000:45000]
     selected_labels = labels[:5000] + labels[40000:45000]
 
-'''
-    
+"""
+
+
 def find_all_wav_files_per_system(root_dir, samples_per_system=3):
     fake_root = os.path.join(root_dir, "fake")
     system_to_paths = defaultdict(list)
@@ -140,9 +144,18 @@ def extract_wavs(metadata):
     audio_paths = []
     with open(metadata, "r") as f:
         for path in f:
-            audio_paths.append(path.split(',')[0])
-    ## metadata = 5-9k - 0-1 kHz; 10-14k 1-2 kHz, 15-19k 2-3kHz ... (rest are for testing) 
-    selected_audios = audio_paths[:4000] + audio_paths[5000:9000] #+ audio_paths[10000:14000] + audio_paths[15000:19000] + audio_paths[20000:24000] + audio_paths[25000:29000] + audio_paths[30000:34000] + audio_paths[35000:39000] + audio_paths[40000:44000]
+            audio_paths.append(path.split(",")[0])
+    ## metadata = 5-9k - 0-1 kHz; 10-14k 1-2 kHz, 15-19k 2-3kHz ... (rest are for testing)
+    selected_audios = (
+        audio_paths[5000:9000]
+        + audio_paths[10000:14000]
+        + audio_paths[15000:19000]
+        + audio_paths[20000:24000]
+        + audio_paths[25000:29000]
+        + audio_paths[30000:34000]
+        + audio_paths[35000:39000]
+        + audio_paths[40000:44000]
+    )
     return selected_audios
 
 
@@ -153,8 +166,9 @@ class AudioDataset(Dataset):
         directory2,
         audio_processor,
         device,
-            #save_paths_txt="/mnt/QNAP/comdav/addvisor/metadata/training_metadata.txt",
-        save_paths_txt = "ljspeech_manipulated_metadata.txt"
+        # save_paths_txt="/mnt/QNAP/comdav/addvisor/metadata/training_metadata.txt",
+        save_paths_txt="ljspeech_manipulated_metadata.txt",
+        # save_paths_txt = "str_files.txt"
     ):
         # files1 = find_all_wav_files_per_system(directory1, samples_per_system=100)
         # files2 = find_wavs_per_language_and_speaker(directory2, samples_per_language=50, samples_per_speaker=10)
@@ -162,17 +176,20 @@ class AudioDataset(Dataset):
         self.audio_processor = audio_processor
         self.device = device
 
-
     def __len__(self):
         return len(self.file_paths)
-        #total_size = len(self.file_paths)
-        #return int(0.8 * total_size)
-#        return 10
+        # total_size = len(self.file_paths)
+        # return int(0.8 * total_size)
+
+    #        return 10
     def __getitem__(self, idx):
         # print(self.file_paths[idx])
         audio_path = self.file_paths[idx]
-        #waveform, sr = self.audio_processor.load_audio(audio_path)
-        waveform, sr = self.audio_processor.load_audio(os.path.join("LJSpeech_vocoded/", audio_path))
+        # print(audio_path)
+        # waveform, sr = self.audio_processor.load_audio(audio_path)
+        waveform, sr = self.audio_processor.load_audio(
+            os.path.join("LJSpeech_vocoded/", audio_path)
+        )
         return waveform.to(device)  # , audio_path
 
 
@@ -183,6 +200,7 @@ def collate_fn(batch):
     features = audio_processor.extract_features(waveforms)
     feats_mean = torch.mean(features, dim=1)
     yhat_logits, _ = torch_log_reg(feats_mean)
+    # print("p(x): ",torch.sigmoid(yhat_logits))
     # yhat = torch_scaler(yhat_logits)
     # thresh_tensor = torch.tensor(thresh, device=yhat_logits.device, dtype=yhat_logits.dtype)
     #    class_pred = (yhat_logits > thresh_tensor).float()
@@ -190,49 +208,69 @@ def collate_fn(batch):
     return waveforms, torch.sigmoid(yhat_logits), magnitude, phase
 
 
-
 def train_mask(model, num_epochs, loss_fn, data_loader, save_path, save=False):
-    print('fitting...')
+    print("fitting...")
     model.train()
     for epoch in range(num_epochs):
-        total_loss=0
+        total_loss = 0
         total_l_in, total_l_out = 0.0, 0.0
         total_nr_samples = len(data_loader)
-        progress_bar = tqdm(data_loader, desc=f"training... epoch {epoch+1} / {num_epochs}",ascii=True)
+        progress_bar = tqdm(
+            data_loader, desc=f"training... epoch {epoch+1} / {num_epochs}", ascii=True
+        )
         for i, batch in enumerate(progress_bar):
             _, y, magnitude, phase = batch
             y, magnitude, phase = y.to(device), magnitude.to(device), phase.to(device)
             bands = audio_processor.get_freq_bands(magnitude).to(device)
             y_coeff_rel, y_coeff_irrel = model(bands)
-#            for name, param in model.named_parameters():
-#                    print(name, param.grad.abs().mean().item())
-            loss_value, individual_losses = loss_class.loss_function(magnitude, y_coeff_rel,y_coeff_irrel, phase, y)
+            #            for name, param in model.named_parameters():
+            #                    print(name, param.grad.abs().mean().item())
+            loss_value, individual_losses = loss_class.loss_function(
+                magnitude, y_coeff_rel, y_coeff_irrel, phase, y
+            )
             optimizer.zero_grad()
             loss_value.backward()
             optimizer.step()
             total_l_in += individual_losses[0].item()
             total_l_out += individual_losses[1].item()
             total_loss += loss_value.item()
-            progress_bar.set_postfix({"loss" : f"{loss_value.item():.4f}"})
+            progress_bar.set_postfix({"loss": f"{loss_value.item():.4f}"})
         avg_loss = total_loss / total_nr_samples
-        ckpt_path = os.path.join(save_path, f"band_0-1k_{epoch+1}_loss_{avg_loss:.4f}.pth")
-#        if save:
-#            log_line = f"\n epoch {epoch+1}: l_in = {total_l_in/total_nr_samples:.4f},  l_out={total_l_out/total_nr_samples:.4f}"
-#        with open("/mnt/QNAP/comdav/logs/bandwidth_mask_loss_terms.txt", "a") as f:
-#                f.write(log_line)
+        ckpt_path = os.path.join(
+            save_path, f"band_anyband_epoch_{epoch+1}_loss_{avg_loss:.4f}.pth"
+        )
+        #        if save:
+        #            log_line = f"\n epoch {epoch+1}: l_in = {total_l_in/total_nr_samples:.4f},  l_out={total_l_out/total_nr_samples:.4f}"
+        #        with open("/mnt/QNAP/comdav/logs/bandwidth_mask_loss_terms.txt", "a") as f:
+        #                f.write(log_line)
         accelerator.save(model.state_dict(), ckpt_path)
 
-dir_path1 = '/mnt/QNAP/comdav/MLAAD_v5/'
-dir_path2 = '/mnt/QNAP/comdav/m-ailabs/'
-save_path = 'mask_predictor_bands/0-1k/'
 
+dir_path1 = "/mnt/QNAP/comdav/MLAAD_v5/"
+dir_path2 = "/mnt/QNAP/comdav/m-ailabs/"
+save_path = "mask_predictor_bands_MLP/anyband/"
 
 BATCH_SIZE = 16
-dataset = AudioDataset(directory1 = dir_path1,
-                       directory2 = dir_path2,
-                       audio_processor = audio_processor,
-                       device = device)
-data_loader = DataLoader(dataset=dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn, drop_last=True)
+dataset = AudioDataset(
+    directory1=dir_path1,
+    directory2=dir_path2,
+    audio_processor=audio_processor,
+    device=device,
+)
+data_loader = DataLoader(
+    dataset=dataset,
+    batch_size=BATCH_SIZE,
+    shuffle=False,
+    collate_fn=collate_fn,
+    drop_last=True,
+)
 model, optimizer, data_loader = accelerator.prepare(model, optimizer, data_loader)
 
-train_mask(model=model, num_epochs=500, loss_fn=loss_class, data_loader=data_loader, save_path=save_path, save=False)
+train_mask(
+    model=model,
+    num_epochs=500,
+    loss_fn=loss_class,
+    data_loader=data_loader,
+    save_path=save_path,
+    save=False,
+)

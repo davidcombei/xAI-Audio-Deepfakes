@@ -1,8 +1,9 @@
 import os
 import shutil
-#files = os.listdir("/mnt/QNAP/comdav/DATA/DATA/LJSpeech/wavs/")
 
-#files = files[:5000]
+# files = os.listdir("/mnt/QNAP/comdav/DATA/DATA/LJSpeech/wavs/")
+
+# files = files[:5000]
 
 
 with open("ljspeech_manipulated_metadata.txt", "r") as f:
@@ -10,10 +11,6 @@ with open("ljspeech_manipulated_metadata.txt", "r") as f:
 
 
 for line in lines:
-    file_name = line.split(',')[0]
+    file_name = line.split(",")[0]
     full_path = os.path.join("/mnt/QNAP/comdav/DATA/DATA/LJSpeech/wavs/", file_name)
     shutil.copy(full_path, "LJSpeech_vocoded/")
-
-    
-
-        
