@@ -253,12 +253,9 @@ def collate_fn(batch):
         final_magnitudes = mag_original.clone()
         final_magnitudes[:, mask_band, :] = mag_vocoded[:, mask_band, :]
 
-        final_complex_spec = final_magnitudes * torch.exp(1j * phase_vocoded)
+        final_complex_spec = final_magnitudes * torch.exp(1j * phase_original)
         final_waveforms_reconstructed = audio_processor.compute_invert_stft(
             final_complex_spec
-        )
-        _, final_magnitudes, final_phases = audio_processor.compute_stft(
-            final_waveforms_reconstructed
         )
 
     final_waveforms_reconstructed = final_waveforms_reconstructed.detach()
