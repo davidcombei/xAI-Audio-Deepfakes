@@ -32,7 +32,8 @@ class LMACLoss(nn.Module):
     def loss_function(
         self, xhat, X_stft_power, X_stft_phase, class_pred
     ):  # , weights=None):
-
+        #print("xhat shape: ", xhat.shape)
+        xhat = xhat.squeeze(1)  
         Tmax = xhat.shape[1]
         relevant_mask_mag = (
             xhat * X_stft_power[:, :Tmax, :]

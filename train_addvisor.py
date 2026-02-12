@@ -1,5 +1,6 @@
 from tqdm import tqdm
 from addvisor import *
+from addvisor import UNet
 import torch
 from audioprocessor import AudioProcessor
 from loss_function import LMACLoss
@@ -54,14 +55,50 @@ def plot_mask(mask, title, sr=16000, hop_length=512, save_path=None):
         plt.close(fig)
     else:
         return None
+    
+def plot_features(features, title, save_path=None):
+    if torch.is_tensor(features):
+        features = features.detach().cpu().numpy()
+    
+    if features.ndim == 3:
+        features = features[0]
+
+    data = features.T 
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    f_min, f_max = data.min(), data.max()
+
+    
+    im = ax.imshow(
+        data, 
+        aspect="auto", 
+        origin="lower", 
+        cmap="viridis_r", 
+        vmin=f_min, 
+        vmax=f_max,
+        interpolation=None
+    )
+
+    ax.set_title(f"{title} (Min: {f_min:.2f}, Max: {f_max:.2f})")
+    ax.set_ylabel("Feature Dimension")
+    ax.set_xlabel("Time Frame")
+    
+    fig.colorbar(im, ax=ax, label="Feature Value")
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, format="png", bbox_inches="tight", dpi=100)
+        plt.close(fig)
+    else:
+        plt.show()
 
 
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 audio_processor = AudioProcessor()
-addvisor = ADDvisor()
 loss = LMACLoss().to(device)
-model = ADDvisor().to(device)
+model = UNet().to(device)
 torch_log_reg = TorchLogReg().to(device)
 
 optimizer_model = torch.optim.Adam(model.parameters(), lr=3e-5)
@@ -167,8 +204,9 @@ def extract_wavs(metadata):
             parts = path.strip().split(",")
             audio_files.append(parts[0])
             # 37000 6-7 - 27000  4-5 - 2000 (e ala real pt in-place swapping)
-    audio_files_one_sample = [audio_files[2000], audio_files[2000]]
-    print("audio_files_one_sample: ", audio_files_one_sample)
+            # index 1503 is perfect for temporal vocoding (2.952 - 5s )
+    audio_files_one_sample = [audio_files[22000], audio_files[22000]]
+    #print("audio_files_one_sample: ", audio_files_one_sample)
     return audio_files_one_sample
 
 
@@ -200,73 +238,108 @@ class AudioDataset(Dataset):
         # print(self.file_paths[idx])
         audio_path = self.file_paths[idx]
         waveform, sr = self.audio_processor.load_audio(
-            os.path.join("LJSpeech_vocoded", audio_path)
+            os.path.join("LJSpeech_vocoded22K", audio_path)
         )
 
         return waveform.to(device), audio_path
 
 
-# def collate_fn(batch):
-#     waveforms, audio_paths = zip(*batch)
-#     waveforms = torch.stack(waveforms, dim=0)
-#     _, magnitude, phase = audio_processor.compute_stft(waveforms)
-#     features = audio_processor.extract_features(waveforms)
-#     feats_mean = torch.mean(features, dim=1)
-#     yhat_logits, _ = torch_log_reg(feats_mean)
-#     #yhat = torch_scaler(yhat_logits)
-#     #thresh_tensor = torch.tensor(thresh, device=yhat_logits.device, dtype=yhat_logits.dtype)
-# #    class_pred = (yhat_logits > thresh_tensor).float()
-
-#     return features, magnitude, phase, yhat_logits
-
-
 def collate_fn(batch):
-    waveforms, filenames = zip(*batch)
+    waveforms, audio_paths = zip(*batch)
+    #print(audio_paths)
     waveforms = torch.stack(waveforms, dim=0)
-
-    filenames_vocoded_list = [f + "_vocoded.wav" for f in filenames]
-    full_paths_vocoded = [
-        os.path.join("LJSpeech_hifigan16K/", f) for f in filenames_vocoded_list
-    ]
-
-    loaded_vocoded_wavs = []
-    for path in full_paths_vocoded:
-        w, _ = audio_processor.load_audio(path)
-        loaded_vocoded_wavs.append(w)
-
-    waveforms_vocoded = torch.stack(loaded_vocoded_wavs, dim=0)
-    waveforms_vocoded = waveforms_vocoded.to(waveforms.device)
-
-    with torch.no_grad():
-        spec_original_complex, mag_original, phase_original = (
-            audio_processor.compute_stft(waveforms.squeeze(1))
-        )
-        spec_vocoded_complex, mag_vocoded, phase_vocoded = audio_processor.compute_stft(
-            waveforms_vocoded.squeeze(1)
-        )
-
-        B, F, T = mag_original.shape
-        sr = 16000
-        freqs = torch.linspace(0, sr / 2, F, device=mag_original.device)
-        mask_band = (freqs >= 3000) & (freqs < 4000)
-
-        final_magnitudes = mag_original.clone()
-        final_magnitudes[:, mask_band, :] = mag_vocoded[:, mask_band, :]
-
-        final_complex_spec = final_magnitudes * torch.exp(1j * phase_original)
-        final_waveforms_reconstructed = audio_processor.compute_invert_stft(
-            final_complex_spec
-        )
-
-    final_waveforms_reconstructed = final_waveforms_reconstructed.detach()
-    final_magnitudes = final_magnitudes.detach()
-    final_phases = final_phases.detach()
-
-    final_features = audio_processor.extract_features(final_waveforms_reconstructed)
-    feats_mean = torch.mean(final_features, dim=1)
+    _, magnitude, phase = audio_processor.compute_stft(waveforms)
+    #print("magnitude shape: ", magnitude.shape)
+    features = audio_processor.extract_features(waveforms)
+    feats_mean = torch.mean(features, dim=1)
     yhat_logits, _ = torch_log_reg(feats_mean)
+    #yhat = torch_scaler(yhat_logits)
+    #thresh_tensor = torch.tensor(thresh, device=yhat_logits.device, dtype=yhat_logits.dtype)
+#    class_pred = (yhat_logits > thresh_tensor).float()
 
-    return final_features, final_magnitudes, final_phases, torch.sigmoid(yhat_logits)
+    return features, magnitude, phase, yhat_logits
+
+
+# def collate_fn(batch):
+#     waveforms, filenames = zip(*batch)
+#     waveforms = torch.stack(waveforms, dim=0)
+
+#     filenames_vocoded_list = [f + "_vocoded.wav" for f in filenames]
+#     full_paths_vocoded = [
+#         os.path.join("LJSpeech_hifigan16K/", f) for f in filenames_vocoded_list
+#     ]
+
+#     loaded_vocoded_wavs = []
+#     for path in full_paths_vocoded:
+#         w, _ = audio_processor.load_audio(path)
+#         loaded_vocoded_wavs.append(w)
+
+#     waveforms_vocoded = torch.stack(loaded_vocoded_wavs, dim=0)
+#     waveforms_vocoded = waveforms_vocoded.to(waveforms.device)
+
+#     # sr = 16000
+#     # start_sec = 2.952
+#     # end_sec = 5.0
+    
+#     # start_sample = int(start_sec * sr)
+#     # end_sample = int(end_sec * sr)
+
+#     # mixed_waveforms = waveforms.clone()
+
+#     # max_len = mixed_waveforms.shape[-1]
+#     # actual_start = min(start_sample, max_len)
+#     # actual_end = min(end_sample, max_len)
+
+#     # if actual_start < actual_end:
+#     #     mixed_waveforms[:, actual_start:actual_end] = waveforms_vocoded[:, actual_start:actual_end]
+
+#     # sf.write("mixed_example.wav", mixed_waveforms[0].cpu().numpy(), sr)
+#     # sf.write("original_example.wav", waveforms[0].cpu().numpy(), sr)
+#     # with torch.no_grad():
+#     #     _, final_magnitudes, final_phases = audio_processor.compute_stft(mixed_waveforms.squeeze(1))
+
+#     # final_features = audio_processor.extract_features(mixed_waveforms)
+#     # #print("final_features shape: ", final_features.max())
+#     # #first_200_feats = final_features[0, 0, :100]
+#     # #print(first_200_feats.detach().cpu().numpy())
+#     # #print(first_200_feats.max())
+#     # #print(first_200_feats.min())
+#     # feats_mean = torch.mean(final_features, dim=1)
+#     # yhat_logits, _ = torch_log_reg(feats_mean)
+#     # #print("predictie pe semnal: ", torch.sigmoid(yhat_logits))
+#     # return final_features, final_magnitudes, final_phases, torch.sigmoid(yhat_logits)
+
+#     with torch.no_grad():
+#         spec_original_complex, mag_original, phase_original = (
+#             audio_processor.compute_stft(waveforms.squeeze(1))
+#         )
+#         spec_vocoded_complex, mag_vocoded, phase_vocoded = audio_processor.compute_stft(
+#             waveforms_vocoded.squeeze(1)
+#         )
+
+#         B, F, T = mag_original.shape
+#         sr = 16000
+#         freqs = torch.linspace(0, sr / 2, F, device=mag_original.device)
+#         mask_band = (freqs >= 3000) & (freqs < 4000)
+
+#         final_magnitudes = mag_original.clone()
+#         final_magnitudes[:, mask_band, :] = mag_vocoded[:, mask_band, :]
+
+#         final_complex_spec = final_magnitudes * torch.exp(1j * phase_original)
+#         final_waveforms_reconstructed = audio_processor.compute_invert_stft(
+#             final_complex_spec
+#         )
+        
+
+#     final_waveforms_reconstructed = final_waveforms_reconstructed.detach()
+#     final_magnitudes = final_magnitudes.detach()
+#     final_phases = final_phases.detach()
+
+#     final_features = audio_processor.extract_features(final_waveforms_reconstructed)
+#     feats_mean = torch.mean(final_features, dim=1)
+#     yhat_logits, _ = torch_log_reg(feats_mean)
+
+#     return final_features, final_magnitudes, final_phases, torch.sigmoid(yhat_logits)
 
 
 def train_addvisor(model, num_epochs, loss_fn, data_loader, save_path):
@@ -287,7 +360,7 @@ def train_addvisor(model, num_epochs, loss_fn, data_loader, save_path):
             features = features.to(device)
             magnitude = magnitude.to(device)
             phase = phase.to(device)
-            mask = model(features)
+            mask = model(magnitude.unsqueeze(1)) 
             loss_value, individual_losses, weights = loss_fn.loss_function(
                 mask, magnitude, phase, torch.sigmoid(yhat_logits)
             )
@@ -297,6 +370,7 @@ def train_addvisor(model, num_epochs, loss_fn, data_loader, save_path):
                     title=f"L_in = {individual_losses[0].item():.6f}, L_out = {individual_losses[1].item():.6f}, L1 = {individual_losses[2].item():.6f}",
                     save_path=f"explanations_3-4k/{epoch+1}_explanation.png",
                 )
+                
             optimizer_model.zero_grad()
             optimizer_w.zero_grad()
             loss_value.backward()
