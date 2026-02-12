@@ -61,23 +61,24 @@ class UNet(nn.Module):
 
     def forward(self, x):
         # x: b, 1, 512, 249
-        x1 = self.e1(x)   # b, 32, 256, 249
-        x2 = self.e2(x1)  # b, 64, 128, 249
+        x1 = self.e1(x)   # b, 32, 256, 248
+        x2 = self.e2(x1)  # b, 64, 128, 248
         x3 = self.e3(x2)  # b, 128, 64,124
         x4 = self.e4(x3)  #b, 256, 32, 62
         b = self.bottleneck(x4)  # b, 512, 32, 62
         y4 = self.up4(b)                    #b, 256, 64, 124
         y4 = torch.cat([y4, x3], dim=1)     # b, 384, 64, 124
         y4 = self.d4(y4)                    # b, 256, 64, 124
-        y3 = self.up3(y4)                   # b, 128, 128, 249
-        y3 = torch.cat([y3, x2], dim=1)     # b, 192, 128, 249
-        y3 = self.d3(y3)                    # b, 128, 128, 249
-        y2 = self.up2(y3)                   # b, 64, 256, 249
-        y2 = torch.cat([y2, x1], dim=1)     # b, 96, 256, 249
-        y2 = self.d2(y2)                    # b, 64, 256, 249
-        y1 = self.up1(y2)                   # b, 32, 512, 249
-        y1 = torch.cat([y1, x], dim=1)      # b, 33, 512, 249
-        y1 = self.d1(y1)                    # b, 32, 512, 249
+        y3 = self.up3(y4)                   # b, 128, 128, 248
+        y3 = torch.cat([y3, x2], dim=1)     # b, 192, 128, 248
+        y3 = self.d3(y3)                    # b, 128, 128, 248
+        y2 = self.up2(y3)                   # b, 64, 256, 248
+        y2 = torch.cat([y2, x1], dim=1)     # b, 96, 256, 248
+        y2 = self.d2(y2)                    # b, 64, 256, 248
+        y1 = self.up1(y2)                   # b, 32, 512, 248
+        y1 = torch.cat([y1, x], dim=1)      # b, 33, 512, 248
+        y1 = self.d1(y1)                    # b, 32, 512, 248
 
-        mask = self.mask_head(y1)           # b, 1, 512, 249
+        mask = self.mask_head(y1)           # b, 1, 512, 248
+
         return mask
